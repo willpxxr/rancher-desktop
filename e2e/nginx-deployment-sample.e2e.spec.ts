@@ -112,17 +112,19 @@ describe('Rancher Desktop', () => {
       }
       await kubectl('wait', '--for=condition=ready', 'pod', '-l', 'app=nginx', '-n', 'rd-nginx-demo');
 
-      // Forward port via UI button click, and capture the port number
-      const portForwardingPage = await navBarPage.getPortForwardingPage();
-      const port = await portForwardingPage?.portForward();
+      if (os.platform().startsWith('win')) {
+        // Forward port via UI button click, and capture the port number
+        const portForwardingPage = await navBarPage.getPortForwardingPage();
+        const port = await portForwardingPage?.portForward();
 
-      // Access app and check the welcome message
-      const response = await fetch(`http://localhost:${ port }`);
+        // Access app and check the welcome message
+        const response = await fetch(`http://localhost:${ port }`);
 
-      expect(response.ok).toBeTruthy();
-      response.text().then((text) => {
-        expect(text).toContain('Welcome to nginx!');
-      });
+        expect(response.ok).toBeTruthy();
+        response.text().then((text) => {
+          expect(text).toContain('Welcome to nginx!');
+        });
+      }
     } finally {
       // Delete namespace
       await kubectl('delete', 'namespace', 'rd-nginx-demo');
