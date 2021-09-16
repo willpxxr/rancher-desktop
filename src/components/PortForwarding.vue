@@ -4,6 +4,7 @@
 <template>
   <div>
     <SortableTable
+      id="tblPortForwarding"
       :headers="headers"
       :rows="rows"
       key-field="key"

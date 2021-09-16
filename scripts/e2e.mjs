@@ -44,11 +44,6 @@ class E2ETestRunner extends events.EventEmitter {
     return promise.child;
   }
 
-  exit() {
-    this.#rendererProcess?.kill();
-    this.#testProcess?.kill();
-  }
-
   #testProcess = null
   startTestProcess() {
     this.#testProcess = this.spawn('Test process',
@@ -84,6 +79,11 @@ class E2ETestRunner extends events.EventEmitter {
       '--port', this.rendererPort, buildUtils.rendererSrcDir);
 
     return Promise.resolve();
+  }
+
+  exit() {
+    this.#rendererProcess?.kill();
+    this.#testProcess?.kill();
   }
 
   async run() {
