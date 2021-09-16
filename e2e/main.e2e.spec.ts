@@ -1,5 +1,7 @@
 import path from 'path';
 import os from 'os';
+import util from 'util';
+
 import { Application, SpectronClient } from 'spectron';
 import { BrowserWindow } from 'electron';
 import NavBarPage from './pages/navbar';
@@ -30,6 +32,7 @@ describe('Rancher Desktop', () => {
     await app.start();
     client = app.client;
     browserWindow = app.browserWindow;
+
     navBarPage = new NavBarPage(app);
   });
 
@@ -41,6 +44,16 @@ describe('Rancher Desktop', () => {
 
   it('opens the window', async() => {
     await client.waitUntilWindowLoaded();
+
+    // Wait till the window is fully loaded n till it gets the title 'Rancher Desktop'
+    for (let i = 0; i < 10; i++) {
+      const windowTitle = (await browserWindow.getTitle()).trim();
+
+      if (windowTitle === 'Rancher Desktop') {
+        break;
+      }
+      await util.promisify(setTimeout)(5_000);
+    }
     // typescript doesn't see a value of await in below statement, but
     // removing await makes the statement not wait till the app window loads
     // Also, Alternate ways to get the app window title, for example using client
