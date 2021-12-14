@@ -842,12 +842,14 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
    * This manages {this.process}.
    */
   protected async runInit() {
-    const stream = await Logging['wsl-exec'].fdStream;
+    const stream = await Logging.wsl.fdStream;
 
     // The process should already be gone by this point, but make sure.
     this.process?.kill('SIGTERM');
-    this.process = childProcess.spawn('wsl.exe',
-      ['--distribution', INSTANCE_NAME, '--exec', '/usr/local/bin/wsl-init'],
+    const command = 'wsl.exe';
+    const args = ['--distribution', INSTANCE_NAME, '--exec', '/usr/local/bin/wsl-init'];
+    console.log(`Executing "${command} ${args.join(' ')}"`);
+    this.process = childProcess.spawn(command, args,
       {
         env: {
           ...process.env,
