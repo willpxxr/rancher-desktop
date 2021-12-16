@@ -842,13 +842,14 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
    * This manages {this.process}.
    */
   protected async runInit() {
-    const stream = await Logging.wsl.fdStream;
+    const logger = Logging['wsl-exec'];
+    const stream = await logger.fdStream;
 
     // The process should already be gone by this point, but make sure.
     this.process?.kill('SIGTERM');
     const command = 'wsl.exe';
     const args = ['--distribution', INSTANCE_NAME, '--exec', '/usr/local/bin/wsl-init'];
-    console.debug(`Executing "${command} ${args.join(' ')}"`);
+    logger.debug(`Executing "${command} ${args.join(' ')}"`);
     this.process = childProcess.spawn(command, args,
       {
         env: {
@@ -1247,8 +1248,8 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
     const executable = await this.getWSLHelperPath();
 
     this.mobySocketProxyProcesses[distro] ??= new BackgroundProcess(this, `${ distro } socket proxy`, async() => {
-      const logger = await Logging[`wsl-helper.${ distro }`];
-      const stream = logger.fdStream;
+      const logger = Logging[`wsl-helper.${ distro }`];
+      const stream = await logger.fdStream;
 
       const command = 'wsl.exe';
       const args = ['--distribution', distro, '--user', 'root', '--exec', executable, 'docker-proxy', 'serve'];
