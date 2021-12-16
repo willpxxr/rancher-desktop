@@ -680,6 +680,8 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
   protected async execWSL(options: execOptions, ...args: string[]): Promise<void>;
   protected async execWSL(options: execOptions & { capture: true }, ...args: string[]): Promise<string>;
   protected async execWSL(optionsOrArg: execOptions | string, ...args: string[]): Promise<void | string> {
+    const logger = Logging['wsl-exec'];
+    const command = 'wsl.exe';
     let options: execOptions & { capture?: boolean } = {};
 
     if (typeof optionsOrArg === 'string') {
@@ -687,12 +689,14 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
     } else {
       options = optionsOrArg;
     }
+    const commandWithArgs = `${command} ${args.join(' ')}`
     try {
-      const stream = await Logging['wsl-exec'].fdStream;
+      const stream = await logger.fdStream;
+      logger.debug(`Executing "${commandWithArgs}"`);
 
       // We need two separate calls so TypeScript can resolve the return values.
       if (options.capture) {
-        const { stdout } = await childProcess.spawnFile('wsl.exe', args, {
+        const { stdout } = await childProcess.spawnFile(command, args, {
           ...options,
           encoding:    options.encoding ?? 'utf16le',
           stdio:       ['ignore', 'pipe', stream],
@@ -701,7 +705,7 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
 
         return stdout;
       }
-      await childProcess.spawnFile('wsl.exe', args, {
+      await childProcess.spawnFile(command, args, {
         ...options,
         encoding:    options.encoding ?? 'utf16le',
         stdio:       ['ignore', stream, stream],
@@ -709,7 +713,7 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
       });
     } catch (ex) {
       if (!options.expectFailure) {
-        console.log(`WSL failed to execute wsl.exe ${ args.join(' ') }: ${ ex }`);
+        logger.log(`Failed to execute "${commandWithArgs}": ${ ex }`);
       }
       throw ex;
     }
