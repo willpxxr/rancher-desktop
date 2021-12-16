@@ -848,7 +848,7 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
     this.process?.kill('SIGTERM');
     const command = 'wsl.exe';
     const args = ['--distribution', INSTANCE_NAME, '--exec', '/usr/local/bin/wsl-init'];
-    console.log(`Executing "${command} ${args.join(' ')}"`);
+    console.debug(`Executing "${command} ${args.join(' ')}"`);
     this.process = childProcess.spawn(command, args,
       {
         env: {
@@ -1247,10 +1247,13 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
     const executable = await this.getWSLHelperPath();
 
     this.mobySocketProxyProcesses[distro] ??= new BackgroundProcess(this, `${ distro } socket proxy`, async() => {
-      const stream = await Logging[`wsl-helper.${ distro }`].fdStream;
+      const logger = await Logging[`wsl-helper.${ distro }`];
+      const stream = logger.fdStream;
 
-      return childProcess.spawn('wsl.exe',
-        ['--distribution', distro, '--user', 'root', '--exec', executable, 'docker-proxy', 'serve'],
+      const command = 'wsl.exe';
+      const args = ['--distribution', distro, '--user', 'root', '--exec', executable, 'docker-proxy', 'serve'];
+      logger.debug(`Executing "${command} ${args.join(' ')}"`);
+      return childProcess.spawn(command, args,
         {
           stdio:       ['ignore', stream, stream],
           windowsHide: true,
