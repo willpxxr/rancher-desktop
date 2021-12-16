@@ -689,10 +689,12 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
     } else {
       options = optionsOrArg;
     }
-    const commandWithArgs = `${command} ${args.join(' ')}`
+    const commandWithArgs = `${ command } ${ args.join(' ') }`;
+
     try {
       const stream = await logger.fdStream;
-      logger.debug(`Executing "${commandWithArgs}"`);
+
+      logger.debug(`Executing "${ commandWithArgs }"`);
 
       // We need two separate calls so TypeScript can resolve the return values.
       if (options.capture) {
@@ -713,7 +715,7 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
       });
     } catch (ex) {
       if (!options.expectFailure) {
-        logger.log(`Failed to execute "${commandWithArgs}": ${ ex }`);
+        logger.log(`Failed to execute "${ commandWithArgs }": ${ ex }`);
       }
       throw ex;
     }
@@ -853,7 +855,8 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
     this.process?.kill('SIGTERM');
     const command = 'wsl.exe';
     const args = ['--distribution', INSTANCE_NAME, '--exec', '/usr/local/bin/wsl-init'];
-    logger.debug(`Executing "${command} ${args.join(' ')}"`);
+
+    logger.debug(`Executing "${ command } ${ args.join(' ') }"`);
     this.process = childProcess.spawn(command, args,
       {
         env: {
@@ -1257,7 +1260,9 @@ export default class WSLBackend extends events.EventEmitter implements K8s.Kuber
 
       const command = 'wsl.exe';
       const args = ['--distribution', distro, '--user', 'root', '--exec', executable, 'docker-proxy', 'serve'];
-      logger.debug(`Executing "${command} ${args.join(' ')}"`);
+
+      logger.debug(`Executing "${ command } ${ args.join(' ') }"`);
+
       return childProcess.spawn(command, args,
         {
           stdio:       ['ignore', stream, stream],
