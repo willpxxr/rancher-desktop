@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { Settings } from '@/config/settings';
 import * as K8s from '@/k8s-engine/k8s';
 import Logging from '@/utils/logging';
+import { makeArgsPrintable } from '@/main/ipcMain';
 
 const console = Logging.background;
 
@@ -42,7 +43,7 @@ const mainEventsProxy = new Proxy(mainEvents, {
     if (property === 'on') {
       return (event: string | symbol, listener: (...args: any[]) => void) => {
         const newListener = (...args: any[]): void => {
-          const printableArgs = args.map((element) => JSON.stringify(element));
+          const printableArgs = makeArgsPrintable(args);
           console.debug(`mainEvents: "${ String(event) }" triggered: ${ printableArgs.join(', ') }`);
           listener(...args);
         };
