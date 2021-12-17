@@ -7,6 +7,7 @@ import path from 'path';
 import Electron from 'electron';
 import Logging from '@/utils/logging';
 import * as window from '@/window';
+import ipcMain from '@/main/ipcMain';
 
 import { ImageProcessor } from '@/k8s-engine/images/imageProcessor';
 
@@ -43,7 +44,7 @@ export class ImageEventHandler {
   }
 
   protected initEventHandlers() {
-    Electron.ipcMain.handle('images-mounted', (_, mounted) => {
+    ipcMain.handle('images-mounted', (_, mounted) => {
       this.#mountCount += mounted ? 1 : -1;
       if (this.#mountCount < 1) {
         this.imageProcessor.removeListener('images-changed', this.onImagesChanged);
@@ -54,7 +55,7 @@ export class ImageEventHandler {
       return this.imageProcessor.listImages();
     });
 
-    Electron.ipcMain.on('do-image-deletion', async(event, imageName, imageID) => {
+    ipcMain.on('do-image-deletion', async(event, imageName, imageID) => {
       try {
         await this.imageProcessor.deleteImage(imageID);
         await this.imageProcessor.refreshImages();
@@ -68,7 +69,7 @@ export class ImageEventHandler {
       }
     });
 
-    Electron.ipcMain.on('do-image-build', async(event, taggedImageName) => {
+    ipcMain.on('do-image-build', async(event, taggedImageName) => {
       const options: any = {
         title:      'Pick the build directory',
         properties: ['openFile'],
@@ -104,7 +105,7 @@ export class ImageEventHandler {
       event.reply('images-process-ended', code);
     });
 
-    Electron.ipcMain.on('do-image-pull', async(event, imageName) => {
+    ipcMain.on('do-image-pull', async(event, imageName) => {
       let taggedImageName = imageName;
       let code;
 
@@ -120,7 +121,7 @@ export class ImageEventHandler {
       event.reply('images-process-ended', code);
     });
 
-    Electron.ipcMain.on('do-image-scan', async(event, imageName) => {
+    ipcMain.on('do-image-scan', async(event, imageName) => {
       let taggedImageName = imageName;
       let code;
 
@@ -142,7 +143,7 @@ export class ImageEventHandler {
       event.reply('images-process-ended', code);
     });
 
-    Electron.ipcMain.on('do-image-push', async(event, imageName, imageID, tag) => {
+    ipcMain.on('do-image-push', async(event, imageName, imageID, tag) => {
       const taggedImageName = `${ imageName }:${ tag }`;
       let code;
 
@@ -160,7 +161,7 @@ export class ImageEventHandler {
       event.reply('images-process-ended', code);
     });
 
-    Electron.ipcMain.handle('images-check-state', () => {
+    ipcMain.handle('images-check-state', () => {
       return this.imageProcessor.isReady;
     });
   }

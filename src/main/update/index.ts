@@ -4,7 +4,6 @@
 
 import os from 'os';
 
-import { ipcMain } from 'electron';
 import { AppUpdater, ProgressInfo, UpdateInfo } from 'electron-updater';
 
 import { Settings } from '@/config/settings';
@@ -13,6 +12,7 @@ import Logging from '@/utils/logging';
 import * as window from '@/window';
 import { MacLonghornUpdater, NsisLonghornUpdater, LinuxLonghornUpdater } from './LonghornUpdater';
 import { hasQueuedUpdate, setHasQueuedUpdate } from './LonghornProvider';
+import ipcMain from '@/main/ipcMain';
 
 interface CustomAppUpdater extends AppUpdater {
   hasUpdateConfiguration: Promise<boolean>;
