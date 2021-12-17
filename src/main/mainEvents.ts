@@ -7,6 +7,9 @@ import { EventEmitter } from 'events';
 
 import { Settings } from '@/config/settings';
 import * as K8s from '@/k8s-engine/k8s';
+import Logging from '@/utils/logging';
+
+const console = Logging.background;
 
 interface MainEvents extends EventEmitter {
   /**
@@ -32,4 +35,23 @@ interface MainEvents extends EventEmitter {
 class MainEventsImpl extends EventEmitter implements MainEvents { }
 const mainEvents: MainEvents = new MainEventsImpl();
 
-export default mainEvents;
+// Intercepts calls to .on() so that any events that occur are logged,
+// along with any data that comes along with them.
+const mainEventsProxy = new Proxy(mainEvents, {
+  get: (target, property) => {
+    if (property === 'on') {
+      return (event: string | symbol, listener: (...args: any[]) => void) => {
+        const newListener = (...args: any[]): void => {
+          console.debug(`mainEvents: "${ String(event) }" triggered: ${ args.join(', ') }`);
+          listener(...args);
+        };
+
+        return target[property](event, newListener);
+      };
+    }
+
+    return Reflect.get(target, property);
+  },
+});
+
+export default mainEventsProxy;
