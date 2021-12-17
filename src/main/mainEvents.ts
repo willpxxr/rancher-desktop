@@ -42,7 +42,8 @@ const mainEventsProxy = new Proxy(mainEvents, {
     if (property === 'on') {
       return (event: string | symbol, listener: (...args: any[]) => void) => {
         const newListener = (...args: any[]): void => {
-          console.debug(`mainEvents: "${ String(event) }" triggered: ${ args.join(', ') }`);
+          const printableArgs = args.map((element) => JSON.stringify(element));
+          console.debug(`mainEvents: "${ String(event) }" triggered: ${ printableArgs.join(', ') }`);
           listener(...args);
         };
 
