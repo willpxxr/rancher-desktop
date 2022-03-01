@@ -10,27 +10,6 @@ import fs from 'fs';
 import net from 'net';
 import os from 'os';
 
-const options = [
-  ['--settings', 'returns a JSON hash of all the settings'],
-  ['--setting', 'returns status of setting X', /\w+/],
-  ['--versions', 'aLl supported k8s versions'],
-  ['--version', 'change to the specified version', /.+/],
-  ['--set', 'change setting NAME to VALUE: boolean|string|number', /\w+=.*/],
-  ['--reset', 'Restart Kubernetes'],
-  ['--reset-all', 'Restart Kubernetes/VM, clear state'],
-  ['--shutdown', 'Shut down the UI'],
-];
-
-const helpText = `Command-line syntax:\n${ options.map(part => `${ part[0] } - ${ part[1] }`).join('\n') }`;
-
-function showHelp(message) {
-  if (message) {
-    console.log(`Error: ${ message }`);
-  }
-  console.log(helpText);
-  process.exit(message ? 1 : 0);
-}
-
 const APP_NAME = 'rancher-desktop';
 const portFile = path.join(os.homedir(), 'Library', 'Application Support', APP_NAME, '.rdCliPort');
 const port = (() => {
@@ -46,6 +25,7 @@ const port = (() => {
 
 const dataPieces = [];
 let timeoutID;
+const rawCommand = process.argv.slice(2);
 
 function continueWithClient() {
   console.log('Waiting for more events...');
@@ -71,16 +51,17 @@ function sendCommand(command) {
     console.log(`Got back all data: ${ dataPieces.join('') }`);
     try {
       const result = JSON.parse(dataPieces.join(''));
+
       switch (result.status) {
-      case 'help':
-        console.log(result.message);
       case 'error':
-        console.log(result.message);
+        console.log(`Error in command rawCommand.join(' '): `);
+        /* eslint-disable-next-line no-fallthrough */
+      case 'help':
       case 'true':
       case 'false':
-        console.log(result.message ?? result.value);
+        console.log(result.value);
       }
-    } catch(e) {
+    } catch (e) {
       console.log(`Error showing ${ dataPieces.join('') }: `, e);
     }
   });
@@ -90,4 +71,4 @@ function sendCommand(command) {
   });
   timeoutID = setTimeout(continueWithClient, 1);
 }
-sendCommand(JSON.stringify(process.argv.slice(2)));
+sendCommand(JSON.stringify(rawCommand));

@@ -2,7 +2,6 @@
  * Server that handles requests from a custom CLI
  */
 
-import events from 'events';
 import fs from 'fs';
 import net from 'net';
 import path from 'path';
@@ -22,7 +21,17 @@ const settingsFile = path.join(paths.config, 'settings.json');
 class ShutdownError extends Error {
 }
 
-export class CommandServer extends events.EventEmitter {
+export interface CommandWorkerInterface {
+  getK8sVersion: () => string;
+  getK8sVersions: () => Promise<string[]>;
+  setPref: (arg: Record<string, any>) => void;
+  requestReset: () => void;
+  requestResetAll: () => void;
+  requestShutdown: () => void;
+}
+
+export class CommandServer {
+  protected commandWorker: CommandWorkerInterface;
   protected commands: Record<string, [(arg?: string) => Promise<commandReturnType>, string?, RegExp?]> = {
     pref:          [this.doGetPref, 'pref NAME: returns status of setting X', /\w+/],
     'set-pref':    [this.doSetPref, 'set-pref NAME=VALUE: change setting NAME to VALUE: boolean|string|number', /\w+=.*/],
@@ -38,6 +47,10 @@ export class CommandServer extends events.EventEmitter {
     '-h':          [this.showHelp],
   };
 
+  constructor(worker: CommandWorkerInterface) {
+    this.commandWorker = worker;
+  }
+
   start() {
     const server = net.createServer((conn) => {
       console.log(`Listening on ${ conn.localAddress }`);
@@ -52,11 +65,10 @@ export class CommandServer extends events.EventEmitter {
           conn.end();
           console.log(`Finished closing the connection`);
         } catch (e) {
-          console.log(`QQQ: server: Something bad happened: ${ e }`);
           if (e instanceof ShutdownError) {
             conn.write(JSON.stringify({
               status:  true,
-              message: 'shutting down...'
+              value:  'shutting down...'
             }));
             console.log(`Finished writing out stuff to conn`);
             conn.end();
@@ -64,13 +76,16 @@ export class CommandServer extends events.EventEmitter {
             console.log(`Asked to quit`);
             server.close();
             fs.rmSync(portFile, { force: true });
-            Electron.app.quit();
+            this.commandWorker.requestShutdown();
+            console.log(`QQQ: We shouldn't be here!`);
           }
+          console.log(`QQQ: server: Something bad happened: ${ e }`);
         }
       });
       conn.on('error', (error: any) => {
         if (error.code === 'ECONNRESET') {
           console.log('Ignoring ECONNRESET');
+
           return;
         }
         console.log(`cliServer: error happened: ${ error }`);
@@ -133,7 +148,7 @@ export class CommandServer extends events.EventEmitter {
 
       return {
         status:  'error',
-        message: e.toString
+        value:  e.toString
       };
     }
   }
@@ -141,20 +156,23 @@ export class CommandServer extends events.EventEmitter {
   protected async showHelp(arg?: string): Promise<commandReturnType> {
     console.log(`QQQ: showHelp: arg: ${ arg }`);
     const prefix = arg ? `${ arg }:\n\n` : '';
+
     console.log(`QQQ: raw commands: `, this.commands);
     console.log(`QQQ: json commands: ${ JSON.stringify(this.commands) }`);
     const commandHelpText = Object.entries(this.commands)
       .filter(entry => entry[1][1])
       .map(entry => `${ entry[0] } - ${ entry[1][1] }`)
       .join('\n');
+
     console.log(`QQQ: commandHelpText: ${ commandHelpText }`);
     const helpText = `${ prefix }Command-line syntax:\n${ commandHelpText }`;
+
     console.log(`QQQ: helpText: ${ helpText }`);
 
     return await new Promise((resolve) => {
       return resolve({
         status:  'help',
-        message: helpText,
+        value:  helpText,
       });
     });
   }
@@ -166,11 +184,13 @@ export class CommandServer extends events.EventEmitter {
 
     console.log(`Raw setting value: ${ retval }, type: ${ typeof retval }`);
 
-    return {
-      status: true,
-      type:   typeof (retval),
-      value:  retval.toString()
-    };
+    return new Promise((resolve) => {
+      resolve({
+        status: true,
+        type:   typeof (retval),
+        value:  retval.toString(),
+      });
+    });
   }
 
   protected async doGetAllPrefs(): Promise<commandReturnType> {
@@ -208,7 +228,7 @@ export class CommandServer extends events.EventEmitter {
       throw new Error(`set-pref: can't set pref ${ pref } because lastPart ${ lastPart } isn't in parent ${ JSON.stringify(parentPref) }`);
     }
     console.log(`QQQ: parentPref[lastPart]: ${ parentPref[lastPart] }, type: ${ typeof (parentPref[lastPart]) }`);
-    switch(typeof parentPref[lastPart]) {
+    switch (typeof parentPref[lastPart]) {
     case 'string':
     case 'number':
     case 'boolean':
@@ -230,34 +250,34 @@ export class CommandServer extends events.EventEmitter {
       return h;
     }, finalBlock);
 
+    this.commandWorker.setPref(block);
+
     // TODO: mainEvents.emit('settings-write-event', block);
     return {
       status:  'updated',
       type:    'json',
-      message: JSON.stringify(block),
+      value:  JSON.stringify(block),
     };
   }
 
-  protected async doGetVersion(): Promise<commandReturnType> {
-    const version = JSON.parse(await this.getRawSettings()).kubernetes?.version;
+  protected doGetVersion(): Promise<commandReturnType> {
+    const version = this.commandWorker.getK8sVersion();
 
-    return {
-      status: true,
-      type:   typeof (version),
-      value:  version.toString()
-    };
+    return new Promise((resolve) => {
+      resolve({
+        status: true,
+        type:   typeof (version),
+        value:  version,
+      });
+    });
   }
 
   protected async doGetVersions(): Promise<commandReturnType> {
-    return await new Promise((resolve) => {
-      const retval = ['v1.22.6', 'v1.23.3+k3s1'];
-
-      resolve({
-        status: true, type: 'json', value: JSON.stringify(retval)
-      });
-    });
-    // TODO: Send a sync message to background to get
-    // await k8smanager.availableVersions`
+    return {
+      status: true,
+      type:   'json',
+      value:  JSON.stringify(await this.commandWorker.getK8sVersions())
+    };
   }
 
   protected async doSetVersion(arg?: string): Promise<commandReturnType> {
@@ -271,20 +291,24 @@ export class CommandServer extends events.EventEmitter {
   }
 
   protected async doReset(): Promise<commandReturnType> {
+    this.commandWorker.requestReset();
+
     return await new Promise((resolve) => {
-      this.emit('k8s-reset', 'fullRestart');
       resolve({
         status: true,
         value:  'restart requested'
       });
     });
-    // return { status: true, value: 'restart requested' };
   }
 
   protected async doResetAll(): Promise<commandReturnType> {
+    this.commandWorker.requestResetAll();
+
     return await new Promise((resolve) => {
-      this.emit('k8s-restart', 'wipe');
-      resolve({ status: true, value: 'restart requested' });
+      resolve({
+        status: true,
+        value:  'restart-all requested'
+      });
     });
   }
 
