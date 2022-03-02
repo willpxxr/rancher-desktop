@@ -25,6 +25,7 @@ import (
 	"os"
 	"strings"
 	"time"
+  "regexp"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -132,8 +133,15 @@ var k3sKubeconfigCmd = &cobra.Command{
 			config.Clusters[clusterIdx].Cluster.Server = server.String()
 		}
 
-    // HACK: WSL2 issues while on a VPN connection. Prefer using "localhost" so cluster is reachable.
-		config.Clusters[clusterIdx].Cluster.Server = "localhost"
+		// HACK: WSL2 issues while on a VPN connection. Prefer using "localhost" so cluster is reachable.
+		for clusterIdx, cluster := range config.Clusters {
+			config.Clusters[clusterIdx].Cluster.Server = regexp.MustCompile(
+				`(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}`,
+			).ReplaceAllString(
+				cluster.Cluster.Server,
+				"localhost",
+			)
+		}
 
 		// Emit the result
 		err = yaml.NewEncoder(os.Stdout).Encode(config)
