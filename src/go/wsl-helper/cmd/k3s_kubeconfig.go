@@ -132,6 +132,9 @@ var k3sKubeconfigCmd = &cobra.Command{
 			config.Clusters[clusterIdx].Cluster.Server = server.String()
 		}
 
+    // HACK: WSL2 issues while on a VPN connection. Prefer using "localhost" so cluster is reachable.
+		config.Clusters[clusterIdx].Cluster.Server = "localhost"
+
 		// Emit the result
 		err = yaml.NewEncoder(os.Stdout).Encode(config)
 		if err != nil {
